@@ -5,7 +5,6 @@ import backgroundImage from "../assets/home.jpg";
 import MovieLogo from "../assets/homeTitle.webp";
 import { FaPlay } from "react-icons/fa";
 import { AiOutlineInfoCircle } from "react-icons/ai";
-// import { API_KEY } from "../utils/constants.js";
 import styled from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,6 +23,7 @@ export default function Netflix() {
   const movies = useSelector((state) => state.netflix.movies);
   const dispatch = useDispatch();
   const [email, setEmail] = useState(undefined);
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
@@ -77,7 +77,7 @@ export default function Netflix() {
 
   const addToList = async (item) => {
     try {
-      await axios.post("http://localhost:5000/api/user/add", {
+      await axios.post(`${BACKEND_URL}/api/user/add`, {
         email,
         data: {
           id: item.id,

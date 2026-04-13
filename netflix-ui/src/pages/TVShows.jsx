@@ -9,7 +9,6 @@ import NotAvailable from "../components/NotAvailable";
 import Navbar from "../components/Navbar";
 import Slider from "../components/Slider";
 import SelectGenre from "../components/SelectGenre";
-// import { API_KEY } from "../utils/constants";
 import SearchResults from "../components/SearchResults";
 
 export default function TVShows() {

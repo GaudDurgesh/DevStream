@@ -20,6 +20,7 @@ export default function Card({ movieData, isLiked = false }) {
   const [email, setEmail] = useState(undefined);
 
   const isMobile = window.innerWidth <= 768;
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (currentUser) => {
@@ -31,7 +32,7 @@ export default function Card({ movieData, isLiked = false }) {
 
   const addToList = async () => {
     try {
-      await axios.post("http://localhost:5000/api/user/add", {
+      await axios.post(`${BACKEND_URL}/api/user/add`, {
         email,
         data: movieData,
       });
