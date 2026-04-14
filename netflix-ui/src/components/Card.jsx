@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
 import video from "../assets/VideoST.mp4";
@@ -13,15 +13,17 @@ import { useDispatch } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { removedFromLikedMovies } from "../store/index.js";
 
-
 export default function Card({ movieData, isLiked = false }) {
   const dispatch = useDispatch();
   const [isHovered, setIsHovered] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const navigate = useNavigate();
   const [email, setEmail] = useState(undefined);
+  const cardRef = useRef(null);
 
+  // ✅ Detect mobile once, stable across renders
   const isMobile = window.innerWidth <= 768;
+
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
@@ -35,6 +37,18 @@ export default function Card({ movieData, isLiked = false }) {
     });
     return () => unsubscribe();
   }, []);
+
+  // ✅ Close hover card when tapping outside on mobile
+  useEffect(() => {
+    if (!isMobile || !isHovered) return;
+    const handleOutside = (e) => {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
+        setIsHovered(false);
+      }
+    };
+    document.addEventListener("touchstart", handleOutside);
+    return () => document.removeEventListener("touchstart", handleOutside);
+  }, [isMobile, isHovered]);
 
   const addToList = async () => {
     try {
@@ -50,7 +64,10 @@ export default function Card({ movieData, isLiked = false }) {
   const imageUrl = `https://image.tmdb.org/t/p/w500${movieData.image}`;
 
   return (
+    // ✅ isHovered state drives both desktop and mobile visibility
     <Container
+      ref={cardRef}
+      $isHovered={isHovered}
       onMouseEnter={() => !isMobile && setIsHovered(true)}
       onMouseLeave={() => !isMobile && setIsHovered(false)}
       onClick={() => isMobile && setIsHovered((prev) => !prev)}
@@ -58,68 +75,74 @@ export default function Card({ movieData, isLiked = false }) {
       {/* Base card image */}
       <img src={imageUrl} alt={movieData.name} />
 
-      {isHovered && (
-        <div className="hover">
-          {/* ── TOP: image / video ── */}
-          <div className="image-video-container">
-            <img
-              src={imageUrl}
-              alt={movieData.name}
-              className={videoReady ? "fade-out" : ""}
+      {/* ✅ Always rendered, visibility driven by $isHovered prop + CSS */}
+      <div className="hover">
+        {/* ── TOP: image / video ── */}
+        <div className="image-video-container">
+          <img
+            src={imageUrl}
+            alt={movieData.name}
+            className={videoReady ? "fade-out" : ""}
+            onClick={() => navigate("/player")}
+          />
+          {!isMobile && (
+            <video
+              src={video}
+              autoPlay
+              loop
+              muted
+              className={videoReady ? "fade-in" : ""}
+              onCanPlay={() => setVideoReady(true)}
               onClick={() => navigate("/player")}
             />
-            {!isMobile && (
-              <video
-                src={video}
-                autoPlay
-                loop
-                muted
-                className={videoReady ? "fade-in" : ""}
-                onCanPlay={() => setVideoReady(true)}
+          )}
+        </div>
+
+        {/* ── BOTTOM: info ── */}
+        <div className="info-container">
+          <h3 className="name" onClick={() => navigate("/player")}>
+            {movieData.name}
+          </h3>
+
+          <div className="icons">
+            <div className="controls">
+              <IoPlayCircleSharp
+                title="Play"
                 onClick={() => navigate("/player")}
               />
-            )}
+              <RiThumbUpFill title="Like" />
+              <RiThumbDownFill title="Dislike" />
+              {isLiked ? (
+                <BsCheck
+                  title="Remove from List"
+                  onClick={() =>
+                    dispatch(
+                      removedFromLikedMovies({ email, movieId: movieData.id })
+                    )
+                  }
+                />
+              ) : (
+                <AiOutlinePlus title="Add to my list" onClick={addToList} />
+              )}
+            </div>
+            <div className="info">
+              <BiChevronDown title="More Info" />
+            </div>
           </div>
 
-          {/* ── BOTTOM: info ── */}
-          <div className="info-container">
-            <h3 className="name" onClick={() => navigate("/player")}>
-              {movieData.name}
-            </h3>
-
-            <div className="icons">
-              <div className="controls">
-                <IoPlayCircleSharp title="Play" onClick={() => navigate("/player")} />
-                <RiThumbUpFill title="Like" />
-                <RiThumbDownFill title="Dislike" />
-                {isLiked ? (
-                  <BsCheck
-                    title="Remove from List"
-                    onClick={() =>
-                      dispatch(removedFromLikedMovies({ email, movieId: movieData.id }))
-                    }
-                  />
-                ) : (
-                  <AiOutlinePlus title="Add to my list" onClick={addToList} />
-                )}
-              </div>
-              <div className="info">
-                <BiChevronDown title="More Info" />
-              </div>
-            </div>
-
-            <div className="genres">
-              <ul>
-                {movieData.genres && movieData.genres.length > 0 ? (
-                  movieData.genres.map((genre) => <li key={genre}>{genre}</li>)
-                ) : (
-                  <li>No genres available</li>
-                )}
-              </ul>
-            </div>
+          <div className="genres">
+            <ul>
+              {movieData.genres && movieData.genres.length > 0 ? (
+                movieData.genres.map((genre) => (
+                  <li key={genre}>{genre}</li>
+                ))
+              ) : (
+                <li>No genres available</li>
+              )}
+            </ul>
           </div>
         </div>
-      )}
+      </div>
     </Container>
   );
 }
@@ -130,7 +153,6 @@ const Container = styled.div`
   position: relative;
   flex-shrink: 0;
 
-  /* Base card image */
   > img {
     border-radius: 0.2rem;
     width: 100%;
@@ -140,42 +162,39 @@ const Container = styled.div`
   }
 
   .hover {
-    /* ✅ High z-index so it floats above all sibling cards */
     z-index: 500;
-
     width: clamp(200px, 22vw, 22rem);
     position: absolute;
-
-    /* ✅ Centered over the card, pops upward */
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%) scale(0.95);
 
     border-radius: 0.4rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.85);
     background-color: #181818;
     overflow: hidden;
 
-    opacity: 0;
-    pointer-events: none;
+    /* ✅ Driven by $isHovered prop — works for BOTH desktop hover and mobile tap */
+    opacity: ${({ $isHovered }) => ($isHovered ? 1 : 0)};
+    pointer-events: ${({ $isHovered }) => ($isHovered ? "all" : "none")};
+    transform: ${({ $isHovered }) =>
+      $isHovered
+        ? "translate(-50%, -50%) scale(1)"
+        : "translate(-50%, -50%) scale(0.95)"};
     transition: opacity 0.25s ease, transform 0.25s ease;
   }
 
-  /* ✅ Trigger on hover */
+  /* ✅ Desktop: also respond to CSS :hover for smooth feel */
   &:hover .hover {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
     pointer-events: all;
   }
 
-  /* ── Image / Video section (TOP half) ── */
   .image-video-container {
     position: relative;
     width: 100%;
     height: 140px;
     background: #000;
-
-    /* ✅ No overflow hidden here — we want video/img contained but not clipping */
     overflow: hidden;
 
     img,
@@ -192,8 +211,6 @@ const Container = styled.div`
       z-index: 2;
       opacity: 1;
       transition: opacity 0.4s ease;
-
-      /* ✅ Fade image out once video is ready */
       &.fade-out {
         opacity: 0;
       }
@@ -203,15 +220,12 @@ const Container = styled.div`
       z-index: 3;
       opacity: 0;
       transition: opacity 0.5s ease;
-
-      /* ✅ Fade video in when ready */
       &.fade-in {
         opacity: 1;
       }
     }
   }
 
-  /* ── Info section (BOTTOM half) ── */
   .info-container {
     padding: 0.75rem 0.75rem 0.6rem;
     display: flex;
@@ -226,7 +240,6 @@ const Container = styled.div`
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-
       &:hover {
         text-decoration: underline;
       }
@@ -249,6 +262,9 @@ const Container = styled.div`
         cursor: pointer;
         color: white;
         transition: color 0.2s, transform 0.2s;
+        /* ✅ Larger tap target on mobile */
+        padding: 0.2rem;
+        -webkit-tap-highlight-color: transparent;
 
         &:hover {
           color: #b8b8b8;
@@ -268,7 +284,6 @@ const Container = styled.div`
       li {
         font-size: clamp(0.6rem, 1.1vw, 0.78rem);
         color: #b3b3b3;
-
         &:not(:last-child)::after {
           content: "·";
           margin-left: 0.35rem;
@@ -284,6 +299,14 @@ const Container = styled.div`
 
     .hover {
       width: clamp(170px, 62vw, 240px);
+      /* ✅ On mobile, anchor below the card instead of centered
+         so it doesn't get clipped by the slider overflow:hidden */
+      top: 0;
+      left: 50%;
+      transform: ${({ $isHovered }) =>
+        $isHovered
+          ? "translate(-50%, 0) scale(1)"
+          : "translate(-50%, 0) scale(0.95)"};
     }
 
     .image-video-container {

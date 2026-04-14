@@ -26,11 +26,14 @@ export default function CardSlider({ data, title }) {
 
   const getMaxOffset = () => {
     if (!listRef.current) return 0;
-    // Total scrollable width minus the visible container width
     const sliderEl = listRef.current;
-    const containerWidth = sliderEl.parentElement?.getBoundingClientRect().width || window.innerWidth;
-    const totalWidth = sliderEl.scrollWidth;
-    return Math.max(0, totalWidth - containerWidth + 100); // +100 for margin
+    // Use offsetParent width to get the true visible container width
+    const containerWidth =
+      sliderEl.parentElement?.getBoundingClientRect().width || window.innerWidth;
+    const marginLeft = parseFloat(getComputedStyle(sliderEl).marginLeft) || 0;
+    const paddingRight = parseFloat(getComputedStyle(sliderEl).paddingRight) || 0;
+    // scrollWidth already includes padding, subtract marginLeft so last card ends flush
+    return Math.max(0, sliderEl.scrollWidth - containerWidth + marginLeft + paddingRight);
   };
 
   const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
@@ -101,10 +104,10 @@ export default function CardSlider({ data, title }) {
           ))}
         </div>
 
-        {/* Right arrow */}
+        {/* Right arrow — hidden when scrolled to the very end */}
         <div
           className={`slider-action right flex j-center a-center ${
-            !showControls ? "none" : ""
+            !showControls || offset >= getMaxOffset() ? "none" : ""
           }`}
           onClick={() => handleDirection("right")}
         >
