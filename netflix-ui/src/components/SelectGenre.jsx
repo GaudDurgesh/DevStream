@@ -3,15 +3,17 @@ import { useDispatch } from "react-redux";
 import { fetchDataByGenre } from "../store";
 import styled from "styled-components";
 
-export default function SelectGenre({ genres, type }) {
+export default function SelectGenre({ genres, type, selectedGenre, onGenreChange }) {
   const dispatch = useDispatch();
 
+  const handleChange = (e) => {
+    const genreId = e.target.value;
+    onGenreChange(genreId);
+    dispatch(fetchDataByGenre({ genre: genreId, type }));
+  };
+
   return (
-    <Select
-      onChange={(e) => {
-        dispatch(fetchDataByGenre({ genre: e.target.value, type }));
-      }}
-    >
+    <Select value={selectedGenre || ""} onChange={handleChange}>
       {genres.map((genre) => (
         <option key={genre.id} value={genre.id}>
           {genre.name}

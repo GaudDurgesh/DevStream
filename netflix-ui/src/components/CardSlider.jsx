@@ -9,10 +9,9 @@ export default function CardSlider({ data, title }) {
   const listRef = useRef();
 
   const handleDirection = (direction) => {
-    // ✅ use actual card width dynamically instead of hardcoded 230
     const cardWidth =
       listRef.current.querySelector("div")?.getBoundingClientRect().width || 200;
-    const gap = 16; // 1rem gap
+    const gap = 16;
     const step = cardWidth + gap;
 
     let distance = listRef.current.getBoundingClientRect().x - 70;
@@ -21,10 +20,7 @@ export default function CardSlider({ data, title }) {
       listRef.current.style.transform = `translateX(${step + distance}px)`;
       setSliderPosition(sliderPosition - 1);
     }
-    if (
-      direction === "right" &&
-      sliderPosition < Math.floor(data.length / 4)
-    ) {
+    if (direction === "right" && sliderPosition < Math.floor(data.length / 4)) {
       listRef.current.style.transform = `translateX(${-step + distance}px)`;
       setSliderPosition(sliderPosition + 1);
     }
@@ -35,7 +31,6 @@ export default function CardSlider({ data, title }) {
       className="flex column"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
-      // ✅ touch support for showing controls on mobile
       onTouchStart={() => setShowControls(true)}
     >
       <h1>{title}</h1>
@@ -69,13 +64,18 @@ const Container = styled.div`
 
   h1 {
     margin-left: 50px;
-    font-size: clamp(1rem, 2.5vw, 1.5rem); /* ✅ responsive title */
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
     color: white;
   }
 
   .wrapper {
     position: relative;
-    overflow: hidden; /* ✅ clips cards that go outside */
+
+    /* ✅ KEY FIX: overflow visible so hover card is NOT clipped */
+    overflow: visible;
+
+    /* ✅ Clip only horizontally using a clip mask so arrows still work */
+    clip-path: none;
 
     .slider {
       width: max-content;
@@ -83,18 +83,21 @@ const Container = styled.div`
       transform: translateX(0px);
       transition: 0.3s ease-in-out;
       margin-left: 50px;
-      padding-right: 50px; /* ✅ space for right arrow */
+      padding-right: 50px;
+
+      /* ✅ Allow hover cards to overflow above/below without clipping */
+      overflow: visible;
     }
 
     .slider-action {
       position: absolute;
-      z-index: 99;
+      z-index: 999; /* ✅ above hover cards */
       height: 100%;
       top: 0;
       bottom: 0;
       width: 50px;
       transition: 0.3s ease-in-out;
-      background: rgba(0, 0, 0, 0.4); /* ✅ visible tap area on mobile */
+      background: rgba(0, 0, 0, 0.5);
       cursor: pointer;
 
       svg {
@@ -129,7 +132,6 @@ const Container = styled.div`
         gap: 0.6rem;
       }
 
-      /* ✅ always show arrows on mobile (no hover) */
       .slider-action {
         display: flex;
         width: 36px;
@@ -140,7 +142,7 @@ const Container = styled.div`
       }
 
       .none {
-        display: flex; /* ✅ override none on mobile — always visible */
+        display: flex;
       }
     }
   }

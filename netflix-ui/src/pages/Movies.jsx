@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { fetchMovies, getGenres } from "../store";
+import { fetchDataByGenre, fetchMovies, getGenres } from "../store";
 import { onAuthStateChanged } from "firebase/auth";
 import { firebaseAuth } from "../utils/firebase-config";
 import styled from "styled-components";
@@ -9,9 +9,7 @@ import NotAvailable from "../components/NotAvailable";
 import Navbar from "../components/Navbar";
 import Slider from "../components/Slider";
 import SelectGenre from "../components/SelectGenre";
-// import { API_KEY } from "../utils/constants";
 import SearchResults from "../components/SearchResults";
-
 
 export default function Movies() {
   const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
@@ -22,6 +20,7 @@ export default function Movies() {
   const genresLoaded = useSelector((state) => state.netflix.genresLoaded);
   const movies = useSelector((state) => state.netflix.movies);
   const genres = useSelector((state) => state.netflix.genres);
+  const [selectedGenre, setSelectedGenre] = useState(null);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -35,8 +34,13 @@ export default function Movies() {
     dispatch(getGenres());
   }, []);
 
+
   useEffect(() => {
-    if (genresLoaded) dispatch(fetchMovies({ type: "movie" }));
+    if (genresLoaded && genres.length) {
+      const firstGenreId = genres[0].id;
+      setSelectedGenre(firstGenreId);
+      dispatch(fetchDataByGenre({ genre: firstGenreId, type: "movie" }));
+    }
   }, [genresLoaded]);
 
   useEffect(() => {
@@ -47,14 +51,19 @@ export default function Movies() {
 
   useEffect(() => {
     const fetchSearchMovies = async () => {
-      if (!searchQuery.trim()) { setSearchResults([]); return; }
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
       try {
         const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&include_adult=false`
+          `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(searchQuery)}&include_adult=false`,
         );
         const data = await res.json();
         setSearchResults(data.results || []);
-      } catch { setSearchResults([]); }
+      } catch {
+        setSearchResults([]);
+      }
     };
     const delay = setTimeout(fetchSearchMovies, 500);
     return () => clearTimeout(delay);
@@ -65,13 +74,26 @@ export default function Movies() {
       <Navbar isScrolled={isScrolled} setSearchQuery={setSearchQuery} />
       <div className="data">
         {searchQuery.trim() ? (
-          <SearchResults searchQuery={searchQuery} searchResults={searchResults} />
+          <SearchResults
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+          />
         ) : (
           <>
             <SelectGenre genres={genres} type="movie" />
-            {movies.length ? <Slider movies={movies} /> : <NotAvailable type="movie" />}
+            {movies.length ? (
+              <Slider movies={movies} />
+            ) : (
+              <NotAvailable type="movie" />
+            )}
           </>
         )}
+        <SelectGenre
+          genres={genres}
+          type="movie"
+          selectedGenre={selectedGenre}
+          onGenreChange={(id) => setSelectedGenre(id)}
+        />
       </div>
     </Container>
   );
