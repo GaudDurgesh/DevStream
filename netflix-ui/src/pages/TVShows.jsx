@@ -27,11 +27,11 @@ export default function TVShows() {
       if (!currentUser) navigate("/login");
     });
     return unsub;
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     dispatch(getGenres());
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (genresLoaded) dispatch(fetchMovies({ type: "tv" }));
@@ -56,7 +56,7 @@ export default function TVShows() {
     };
     const delay = setTimeout(fetchSearchMovies, 500);
     return () => clearTimeout(delay);
-  }, [searchQuery]);
+  }, [searchQuery, API_KEY]);
 
   return (
     <Container>

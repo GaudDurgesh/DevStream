@@ -93,9 +93,7 @@ export const getUserLikedMovies = createAsyncThunk(
 export const removedFromLikedMovies = createAsyncThunk(
   "netflix/deleteLiked",
   async ({ email, movieId }) => {
-    const {
-      data: { movies },
-    } = await axios.put(`${BACKEND_URL}/api/user/delete`, {
+    await axios.put(`${BACKEND_URL}/api/user/delete`, {
       email,
       movieId,
     });

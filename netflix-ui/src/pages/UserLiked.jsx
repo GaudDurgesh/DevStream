@@ -21,11 +21,11 @@ export default function UserLiked() {
       else navigate("/login");
     });
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (email) dispatch(getUserLikedMovies(email));
-  }, [email]);
+  }, [email, dispatch]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.pageYOffset !== 0);
