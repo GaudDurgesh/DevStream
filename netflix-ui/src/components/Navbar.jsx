@@ -24,18 +24,36 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
   }, []);
 
   const [showSearch, setShowSearch] = useState(false);
-  const [inputHover, setInputHover] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef(null);
+  const searchRef = useRef(null);
   const menuRef = useRef(null);
 
+  // Focus input whenever search opens
   useEffect(() => {
     if (showSearch && inputRef.current) {
       inputRef.current.focus();
     }
   }, [showSearch]);
 
-  // ✅ Fixed: use mousedown instead of click, and check menuRef properly
+  // Close search on outside tap/click
+  useEffect(() => {
+    if (!showSearch) return;
+    const handleOutside = (e) => {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowSearch(false);
+        setSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [showSearch]);
+
+  // Close mobile menu on outside tap/click
   useEffect(() => {
     if (!menuOpen) return;
     const handleOutsideClick = (e) => {
@@ -43,7 +61,6 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
         setMenuOpen(false);
       }
     };
-    // ✅ Use mousedown/touchstart so it doesn't conflict with the toggle button tap
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("touchstart", handleOutsideClick);
     return () => {
@@ -52,8 +69,20 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
     };
   }, [menuOpen]);
 
+  const handleSearchToggle = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (showSearch) {
+      // Second tap: close and clear
+      setShowSearch(false);
+      setSearchQuery("");
+    } else {
+      // First tap: open
+      setShowSearch(true);
+    }
+  };
+
   return (
-    // ✅ attach menuRef to the nav so outside-click works correctly
     <Container ref={menuRef}>
       <nav className={`flex ${isScrolled ? "scrolled" : ""}`}>
         {/* LEFT */}
@@ -77,12 +106,15 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
 
         {/* RIGHT */}
         <div className="right flex a-center">
-          <div className={`search ${showSearch ? "show-search" : ""}`}>
+          {/* ✅ searchRef wraps the whole search widget */}
+          <div
+            ref={searchRef}
+            className={`search ${showSearch ? "show-search" : ""}`}
+          >
+            {/* ✅ onPointerDown instead of onFocus/onBlur — works on both touch and mouse */}
             <button
-              onFocus={() => setShowSearch(true)}
-              onBlur={() => {
-                if (!inputHover) setShowSearch(false);
-              }}
+              onPointerDown={handleSearchToggle}
+              aria-label="Toggle search"
             >
               <FaSearch />
             </button>
@@ -90,13 +122,8 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
               ref={inputRef}
               type="text"
               placeholder="Search Movies & TV Shows"
-              onMouseEnter={() => setInputHover(true)}
-              onMouseLeave={() => setInputHover(false)}
-              onBlur={() => {
-                setShowSearch(false);
-                setInputHover(false);
-              }}
               onChange={(e) => setSearchQuery(e.target.value)}
+              // ✅ No onBlur here — closing is handled by outside-click only
             />
           </div>
 
@@ -106,7 +133,6 @@ export default function Navbar({ isScrolled, setSearchQuery }) {
 
           <button
             className="hamburger"
-            // ✅ Use onPointerDown instead of onClick — fires before outside-click listener
             onPointerDown={(e) => {
               e.stopPropagation();
               setMenuOpen((prev) => !prev);
@@ -220,7 +246,9 @@ const Container = styled.div`
         background-color: transparent;
         border: none;
         cursor: pointer;
-        &:focus { outline: none; }
+        &:focus {
+          outline: none;
+        }
         svg {
           color: #f34242;
           font-size: 1.2rem;
@@ -233,15 +261,25 @@ const Container = styled.div`
         align-items: center;
         justify-content: center;
         padding: 0.2rem 0.5rem;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        transition: border 0.3s ease, background 0.3s ease;
 
         button {
           background-color: transparent;
           border: none;
           cursor: pointer;
-          &:focus { outline: none; }
+          /* ✅ Large tap target for mobile */
+          padding: 0.4rem;
+          margin: -0.4rem;
+          -webkit-tap-highlight-color: transparent;
+          &:focus {
+            outline: none;
+          }
           svg {
             color: white;
             font-size: 1.2rem;
+            display: block;
           }
         }
 
@@ -249,14 +287,22 @@ const Container = styled.div`
           width: 0;
           opacity: 0;
           visibility: hidden;
-          transition: 0.3s ease-in-out;
+          /* ✅ smooth expand animation */
+          transition: width 0.3s ease, opacity 0.3s ease;
           background-color: transparent;
           border: none;
           color: white;
-          &:focus { outline: none; }
+          font-size: 0.9rem;
+          &::placeholder {
+            color: rgba(255, 255, 255, 0.55);
+          }
+          &:focus {
+            outline: none;
+          }
         }
       }
 
+      /* ✅ Active search state */
       .show-search {
         border: 1px solid white;
         background-color: rgba(0, 0, 0, 0.6);
@@ -268,15 +314,17 @@ const Container = styled.div`
         }
       }
 
-      /* ✅ Hidden on desktop */
       .hamburger {
         display: none;
         background: transparent;
         border: none;
         cursor: pointer;
-        padding: 0.5rem;        /* ✅ larger tap target */
-        margin: -0.5rem;        /* ✅ offset padding so layout stays same */
-        &:focus { outline: none; }
+        padding: 0.5rem;
+        margin: -0.5rem;
+        -webkit-tap-highlight-color: transparent;
+        &:focus {
+          outline: none;
+        }
         svg {
           color: white;
           font-size: 1.4rem;
@@ -322,7 +370,12 @@ const Container = styled.div`
       }
 
       .right .hamburger {
-        display: block;   /* ✅ show on tablet/mobile */
+        display: block;
+      }
+
+      /* ✅ Slightly narrower input on tablet */
+      .right .show-search input {
+        width: 140px;
       }
     }
 
@@ -334,8 +387,10 @@ const Container = styled.div`
         gap: 0.6rem;
       }
 
+      /* ✅ Compact input on small phones */
       .right .show-search input {
-        width: 120px;
+        width: 110px;
+        font-size: 0.8rem;
       }
     }
   }

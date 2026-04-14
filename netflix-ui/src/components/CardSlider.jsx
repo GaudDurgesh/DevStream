@@ -5,52 +5,110 @@ import { AiOutlineLeft, AiOutlineRight } from "react-icons/ai";
 
 export default function CardSlider({ data, title }) {
   const [showControls, setShowControls] = useState(false);
-  const [sliderPosition, setSliderPosition] = useState(0);
+
+  // ✅ Track offset in px directly — no more mixed state/DOM math
+  const [offset, setOffset] = useState(0);
+
+  // ✅ Touch drag state
+  const touchStartX = useRef(null);
+  const touchStartOffset = useRef(0);
+
   const listRef = useRef();
 
-  const handleDirection = (direction) => {
-    const cardWidth =
-      listRef.current.querySelector("div")?.getBoundingClientRect().width || 200;
-    const gap = 16;
-    const step = cardWidth + gap;
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
-    let distance = listRef.current.getBoundingClientRect().x - 70;
-
-    if (direction === "left" && sliderPosition > 0) {
-      listRef.current.style.transform = `translateX(${step + distance}px)`;
-      setSliderPosition(sliderPosition - 1);
-    }
-    if (direction === "right" && sliderPosition < Math.floor(data.length / 4)) {
-      listRef.current.style.transform = `translateX(${-step + distance}px)`;
-      setSliderPosition(sliderPosition + 1);
-    }
+  const getStep = () => {
+    const firstCard = listRef.current?.querySelector("div");
+    const cardWidth = firstCard?.getBoundingClientRect().width || 160;
+    const gap = parseFloat(getComputedStyle(listRef.current).gap) || 10;
+    return cardWidth + gap;
   };
+
+  const getMaxOffset = () => {
+    if (!listRef.current) return 0;
+    // Total scrollable width minus the visible container width
+    const sliderEl = listRef.current;
+    const containerWidth = sliderEl.parentElement?.getBoundingClientRect().width || window.innerWidth;
+    const totalWidth = sliderEl.scrollWidth;
+    return Math.max(0, totalWidth - containerWidth + 100); // +100 for margin
+  };
+
+  const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+  const moveTo = (newOffset) => {
+    const clamped = clamp(newOffset, 0, getMaxOffset());
+    setOffset(clamped);
+    listRef.current.style.transform = `translateX(${-clamped}px)`;
+  };
+
+  // ── Arrow buttons ──────────────────────────────────────────────────────────
+
+  const handleDirection = (direction) => {
+    const step = getStep();
+    moveTo(direction === "left" ? offset - step : offset + step);
+  };
+
+  // ── Touch drag ─────────────────────────────────────────────────────────────
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartOffset.current = offset;
+    setShowControls(true);
+  };
+
+  const onTouchMove = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = touchStartX.current - e.touches[0].clientX;
+    const newOffset = clamp(touchStartOffset.current + delta, 0, getMaxOffset());
+    setOffset(newOffset);
+    listRef.current.style.transform = `translateX(${-newOffset}px)`;
+  };
+
+  const onTouchEnd = () => {
+    touchStartX.current = null;
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <Container
       className="flex column"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
-      onTouchStart={() => setShowControls(true)}
     >
       <h1>{title}</h1>
       <div className="wrapper">
+        {/* Left arrow */}
         <div
-          className={`slider-action left ${!showControls ? "none" : ""} flex j-center a-center`}
+          className={`slider-action left flex j-center a-center ${
+            !showControls || offset === 0 ? "none" : ""
+          }`}
+          onClick={() => handleDirection("left")}
         >
-          <AiOutlineLeft onClick={() => handleDirection("left")} />
+          <AiOutlineLeft />
         </div>
 
-        <div className="flex slider" ref={listRef}>
+        {/* Slider track */}
+        <div
+          className="flex slider"
+          ref={listRef}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           {data.map((movie, index) => (
             <Card movieData={movie} index={index} key={movie.id} />
           ))}
         </div>
 
+        {/* Right arrow */}
         <div
-          className={`slider-action right ${!showControls ? "none" : ""} flex j-center a-center`}
+          className={`slider-action right flex j-center a-center ${
+            !showControls ? "none" : ""
+          }`}
+          onClick={() => handleDirection("right")}
         >
-          <AiOutlineRight onClick={() => handleDirection("right")} />
+          <AiOutlineRight />
         </div>
       </div>
     </Container>
@@ -70,28 +128,25 @@ const Container = styled.div`
 
   .wrapper {
     position: relative;
-
-    /* ✅ KEY FIX: overflow visible so hover card is NOT clipped */
     overflow: visible;
-
-    /* ✅ Clip only horizontally using a clip mask so arrows still work */
-    clip-path: none;
 
     .slider {
       width: max-content;
       gap: 1rem;
-      transform: translateX(0px);
-      transition: 0.3s ease-in-out;
+      /* ✅ transition only for arrow taps, not touch drag (drag sets inline directly) */
+      transition: transform 0.3s ease-in-out;
       margin-left: 50px;
       padding-right: 50px;
-
-      /* ✅ Allow hover cards to overflow above/below without clipping */
       overflow: visible;
+      /* ✅ Prevent iOS rubber-band on horizontal drag */
+      touch-action: pan-x;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
     .slider-action {
       position: absolute;
-      z-index: 999; /* ✅ above hover cards */
+      z-index: 999;
       height: 100%;
       top: 0;
       bottom: 0;
@@ -127,14 +182,21 @@ const Container = styled.div`
     }
 
     .wrapper {
+      /* ✅ Clip the row horizontally so cards don't overflow the screen */
+      overflow: hidden;
+
       .slider {
         margin-left: 1.5rem;
         gap: 0.6rem;
+        /* ✅ No transition during touch drag for instant feel */
+        transition: none;
       }
 
+      /* ✅ Always show arrows on mobile (no hover state) */
       .slider-action {
         display: flex;
         width: 36px;
+        background: rgba(0, 0, 0, 0.6);
 
         svg {
           font-size: 1.4rem;
@@ -142,6 +204,7 @@ const Container = styled.div`
       }
 
       .none {
+        /* ✅ Keep arrows visible on mobile even when showControls is false */
         display: flex;
       }
     }
