@@ -15,6 +15,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { firebaseAuth } from "../utils/firebase-config";
 import axios from "axios";
 
+
+
 export default function Netflix() {
   const API_KEY = process.env.REACT_APP_TMDB_API_KEY;
   const [isScrolled, setIsScrolled] = useState(false);
@@ -42,7 +44,6 @@ export default function Netflix() {
     }
   }, [genresLoaded]);
 
-  // ✅ Moved inside useEffect to avoid re-registering on every render
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.pageYOffset !== 0);
