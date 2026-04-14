@@ -13,6 +13,7 @@ import { useDispatch } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { removedFromLikedMovies } from "../store/index.js";
 
+
 export default function Card({ movieData, isLiked = false }) {
   const dispatch = useDispatch();
   const [isHovered, setIsHovered] = useState(false);
@@ -46,7 +47,6 @@ export default function Card({ movieData, isLiked = false }) {
     }
   };
 
-  // ✅ movieData.image is correct — mapped from backdrop_path in Redux store
   const imageUrl = `https://image.tmdb.org/t/p/w500${movieData.image}`;
 
   return (
